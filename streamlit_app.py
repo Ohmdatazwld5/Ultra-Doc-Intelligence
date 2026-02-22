@@ -309,6 +309,8 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "extraction_result" not in st.session_state:
     st.session_state.extraction_result = None
+if "last_processed_file" not in st.session_state:
+    st.session_state.last_processed_file = None
 
 
 # ============== Sidebar ==============
@@ -361,20 +363,28 @@ with st.sidebar:
     uploaded_file = st.file_uploader(
         "Choose a logistics document",
         type=["pdf", "docx", "txt"],
-        help="Supported formats: PDF, DOCX, TXT"
+        help="Supported formats: PDF, DOCX, TXT",
+        key="file_uploader"
     )
     
+    # Auto-process on upload (no button needed)
     if uploaded_file is not None:
-        if st.button("🚀 Process Document", type="primary", use_container_width=True):
-            with st.spinner("Processing document..."):
+        # Check if this is a new file (not already processed)
+        file_key = f"{uploaded_file.name}_{uploaded_file.size}"
+        if st.session_state.get("last_processed_file") != file_key:
+            with st.spinner("🔄 Auto-indexing document..."):
                 result = upload_document(uploaded_file)
                 if result and result.get("success"):
                     st.session_state.document_id = result["document_id"]
                     st.session_state.document_name = result["filename"]
                     st.session_state.chat_history = []
                     st.session_state.extraction_result = None
-                    st.success(f"✅ Processed: {result['filename']}")
+                    st.session_state.last_processed_file = file_key
+                    st.success(f"✅ Auto-indexed: {result['filename']}")
                     st.info(f"📊 {result['stats']['chunk_count']} chunks, {result['stats']['page_count']} pages")
+                    st.rerun()
+        else:
+            st.success(f"✅ Document ready: {uploaded_file.name}")
     
     st.divider()
     
@@ -388,6 +398,7 @@ with st.sidebar:
             st.session_state.document_name = None
             st.session_state.chat_history = []
             st.session_state.extraction_result = None
+            st.session_state.last_processed_file = None
             st.rerun()
 
 
