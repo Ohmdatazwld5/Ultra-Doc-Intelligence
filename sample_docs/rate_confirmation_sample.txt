@@ -1,0 +1,103 @@
+RATE CONFIRMATION
+
+Confirmation Number: RC-2024-001547
+Date: March 12, 2024
+
+================================================================================
+                              CARRIER INFORMATION
+================================================================================
+
+Carrier Name: Swift Transport Solutions LLC
+MC Number: MC-789456
+DOT Number: 2847591
+Contact: John Smith
+Phone: (555) 123-4567
+Email: dispatch@swifttransport.com
+
+================================================================================
+                              SHIPPER INFORMATION
+================================================================================
+
+Company: Midwest Manufacturing Corp
+Address: 4521 Industrial Parkway
+         Chicago, IL 60632
+Contact: Sarah Johnson
+Phone: (312) 555-8900
+Reference: PO-2024-78542
+
+================================================================================
+                             CONSIGNEE INFORMATION
+================================================================================
+
+Company: Southern Distribution Center
+Address: 8900 Commerce Boulevard
+         Dallas, TX 75247
+Contact: Mike Williams
+Phone: (214) 555-3400
+Delivery Reference: DC-RCV-44521
+
+================================================================================
+                              SHIPMENT DETAILS
+================================================================================
+
+Pickup Date: March 15, 2024
+Pickup Time: 08:00 AM - 12:00 PM (CST)
+Pickup Number: PU-78542
+
+Delivery Date: March 17, 2024
+Delivery Time: 02:00 PM - 06:00 PM (CST)
+Delivery Number: DEL-44521
+
+Equipment Type: 53' Dry Van
+Mode: TL (Full Truckload)
+Temperature Requirements: N/A (Ambient)
+
+================================================================================
+                              COMMODITY INFORMATION
+================================================================================
+
+Description: Industrial Machine Parts
+Pieces: 24 Pallets
+Weight: 42,500 lbs
+Dimensions: Standard Pallets (48" x 40")
+Freight Class: 85
+NMFC: 123456
+
+Special Instructions:
+- Floor loaded pallets
+- Do not stack
+- Delivery appointment required
+
+================================================================================
+                               RATE INFORMATION
+================================================================================
+
+Line Haul Rate:                    $2,150.00
+Fuel Surcharge (12%):                $258.00
+Stop-Off Charge:                       $0.00
+Detention (included):                  $0.00
+                                   ----------
+TOTAL RATE:                        $2,408.00 USD
+
+Payment Terms: Net 30 Days
+Billing Reference: INV-2024-001547
+
+================================================================================
+                            TERMS AND CONDITIONS
+================================================================================
+
+1. Carrier agrees to provide equipment in good condition
+2. All cargo must be properly secured
+3. Driver must have valid CDL and current medical card
+4. Proof of delivery required with signature
+5. Any detention beyond 2 hours will be charged at $75/hour
+6. Lumper fees are not included in this rate
+
+================================================================================
+
+By accepting this load, carrier agrees to all terms and conditions stated above.
+
+Authorized Signature: _________________________  Date: ______________
+
+Broker: Logistics Solutions Inc.
+Contact: (800) 555-LOAD

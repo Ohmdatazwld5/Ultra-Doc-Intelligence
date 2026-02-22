@@ -1,0 +1,80 @@
+BILL OF LADING
+                                                    STRAIGHT BILL OF LADING
+                                                    NOT NEGOTIABLE
+
+================================================================================
+BOL Number: BOL-2024-894521                        Date: March 15, 2024
+PRO Number: PRO-7845123                            Page: 1 of 1
+================================================================================
+
+SHIP FROM (SHIPPER)                      SHIP TO (CONSIGNEE)
+------------------------                 ------------------------
+Midwest Manufacturing Corp               Southern Distribution Center
+4521 Industrial Parkway                  8900 Commerce Boulevard
+Chicago, IL 60632                        Dallas, TX 75247
+Contact: Sarah Johnson                   Contact: Mike Williams
+Phone: (312) 555-8900                   Phone: (214) 555-3400
+
+THIRD PARTY BILLING                      CARRIER
+------------------------                 ------------------------
+Logistics Solutions Inc.                 Swift Transport Solutions LLC
+1200 Broker Lane                        MC: 789456
+Memphis, TN 38118                       Driver: Robert Davis
+                                        Tractor: TRK-4521
+                                        Trailer: VAN-8974
+
+================================================================================
+                              SHIPMENT INFORMATION
+================================================================================
+
+| QTY  | TYPE    | DESCRIPTION                    | WEIGHT    | CLASS |
+|------|---------|--------------------------------|-----------|-------|
+| 24   | Pallets | Industrial Machine Parts       | 42,500 lbs|   85  |
+|      |         | NMFC: 123456                   |           |       |
+|      |         | PO: PO-2024-78542              |           |       |
+|------|---------|--------------------------------|-----------|-------|
+| TOTAL|         |                                | 42,500 lbs|       |
+
+================================================================================
+                              SPECIAL INSTRUCTIONS
+================================================================================
+
+- DELIVERY APPOINTMENT REQUIRED - CALL (214) 555-3400
+- DO NOT STACK - FLOOR LOAD ONLY
+- PROOF OF DELIVERY REQUIRED
+- SEAL NUMBER: SL-784521
+
+================================================================================
+                           DECLARED VALUE / COD
+================================================================================
+
+[ ] COD Amount: $____________  [ ] Check  [ ] Money Order
+[X] Declared Value: Not Applicable (Released Value)
+
+================================================================================
+
+SHIPPER CERTIFICATION:
+This is to certify that the above named materials are properly classified,
+described, packaged, marked, and labeled, and are in proper condition for
+transportation according to the applicable regulations of the DOT.
+
+Shipper Signature: Sarah Johnson              Date: 03/15/2024
+                   ________________________
+
+================================================================================
+
+CARRIER ACKNOWLEDGMENT:
+Received the above described property in apparent good order, except as noted.
+
+Driver Signature: Robert Davis                Date: 03/15/2024
+                  ________________________    Time: 09:45 AM
+
+================================================================================
+
+CONSIGNEE RECEIPT (To be completed at delivery):
+
+Received in good condition except as noted: ________________________________
+
+Signature: ________________________        Date: _____________ Time: _________
+
+Printed Name: _________________________
