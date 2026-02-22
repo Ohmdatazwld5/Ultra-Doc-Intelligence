@@ -232,16 +232,22 @@ class DynamicExtractor:
         self.llm_model = llm_model
         self.max_retries = max_retries
     
-    def extract(self, document_text: str) -> ShipmentData:
+    def extract(self, document_text: str, use_llm: bool = True) -> ShipmentData:
         """
         Extract structured shipment data using dynamic LLM extraction.
         
         Args:
             document_text: Full text of the document
+            use_llm: Whether to use LLM (always True for this extractor, kept for API compatibility)
             
         Returns:
             ShipmentData with extracted fields and confidence scores
         """
+        if not use_llm:
+            # Return empty result if LLM disabled (this extractor requires LLM)
+            logger.warning("DynamicExtractor requires LLM. Returning empty result.")
+            return ShipmentData(extraction_notes=["LLM disabled - no extraction performed"])
+        
         # Step 1: LLM extraction with field-level confidence
         raw_results, field_confidences = self._llm_extract_with_confidence(document_text)
         
@@ -303,8 +309,10 @@ Return a JSON object with this EXACT structure:
 3. Set confidence="low" if uncertain
 4. Set confidence="not_found" and value=null if not in document
 5. For rate: use the TOTAL amount including surcharges
-6. For dates: convert to YYYY-MM-DD format when possible
-7. Return ONLY valid JSON, no markdown"""
+6. For dates: convert to YYYY-MM-DD format. If only date is available (no specific time), use the date only (YYYY-MM-DD)
+7. For delivery_datetime: ALWAYS extract if "Delivery Date" is shown, even if appointment time is "-" or empty
+8. For carrier_name: Only extract actual carrier/trucking company names. Dispatchers, brokers, or TMS systems are NOT carriers
+9. Return ONLY valid JSON, no markdown"""
 
         user_prompt = f"""Analyze this document and extract all shipment data:
 
