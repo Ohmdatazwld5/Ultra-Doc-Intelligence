@@ -18,6 +18,7 @@ from enum import Enum
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 import uvicorn
 
 from app.config import get_settings, Settings
@@ -25,6 +26,7 @@ from app.document_processor import DocumentProcessor, ParsedDocument
 from app.rag_engine import RAGEngine
 from app.structured_extractor import StructuredExtractor
 from app.guardrails import Guardrails, AnswerValidator
+from app.graph_rag import GraphRAGEngine, GraphQueryResult
 from app.schemas import (
     UploadResponse, AskRequest, AskResponse, SourceChunk,
     ExtractRequest, ExtractResponse, ShipmentDataResponse, ExtractionMetadata,
@@ -71,6 +73,7 @@ class AppState:
         self.extractor: Optional[StructuredExtractor] = None
         self.guardrails: Optional[Guardrails] = None
         self.validator: Optional[AnswerValidator] = None
+        self.graph_rag: Optional[GraphRAGEngine] = None  # GraphRAG engine
         
         # Document registry: document_id -> document metadata
         self.documents: Dict[str, Dict[str, Any]] = {}
@@ -122,6 +125,13 @@ async def lifespan(app: FastAPI):
         app_state.extractor = StructuredExtractor(
             api_key=settings.xai_api_key,
             llm_model=settings.llm_model,
+            base_url=settings.xai_base_url
+        )
+        
+        # Initialize GraphRAG engine (uses xAI Grok)
+        app_state.graph_rag = GraphRAGEngine(
+            api_key=settings.xai_api_key,
+            llm_model=settings.llm_model_fast,  # Use fast model for graph queries
             base_url=settings.xai_base_url
         )
         
@@ -570,6 +580,177 @@ async def extract_structured_data(
         
     except Exception as e:
         logger.error(f"Error extracting data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============== GraphRAG Endpoints ==============
+
+class GraphIndexRequest(BaseModel):
+    """Request to index a document in the knowledge graph."""
+    document_id: str = Field(..., description="ID of the document to index")
+
+
+class GraphIndexResponse(BaseModel):
+    """Response from graph indexing."""
+    success: bool
+    document_id: str
+    entities_count: int
+    relationships_count: int
+    message: str
+
+
+class GraphQueryRequest(BaseModel):
+    """Request to query the knowledge graph."""
+    query: str = Field(..., description="Natural language query")
+    max_entities: int = Field(default=20, description="Maximum entities to consider")
+
+
+class GraphQueryResponse(BaseModel):
+    """Response from graph query."""
+    success: bool
+    query: str
+    answer: str
+    entities_found: int
+    relationships_found: int
+    confidence: float
+    reasoning: Optional[str] = None
+
+
+class GraphStatsResponse(BaseModel):
+    """Graph statistics response."""
+    total_entities: int
+    total_relationships: int
+    documents_indexed: int
+    entity_types: Dict[str, int]
+    relationship_types: Dict[str, int]
+
+
+@app.post("/graph/index", response_model=GraphIndexResponse, tags=["GraphRAG"])
+async def graph_index_document(
+    request: GraphIndexRequest,
+    state: AppState = Depends(get_state)
+):
+    """
+    Index a document into the knowledge graph.
+    
+    Extracts entities (shipments, shippers, carriers, locations, etc.) and 
+    their relationships from the document.
+    """
+    if not state.graph_rag:
+        raise HTTPException(status_code=503, detail="GraphRAG engine not initialized")
+    
+    # Check if document exists
+    if request.document_id not in state.document_texts:
+        raise HTTPException(status_code=404, detail=f"Document {request.document_id} not found")
+    
+    try:
+        document_text = state.document_texts[request.document_id]
+        doc_info = state.documents.get(request.document_id, {})
+        document_name = doc_info.get("filename", request.document_id)
+        
+        # Index in knowledge graph (synchronous method)
+        result = state.graph_rag.index_document(
+            document_text=document_text,
+            document_id=request.document_id,
+            document_name=document_name
+        )
+        
+        return GraphIndexResponse(
+            success=True,
+            document_id=request.document_id,
+            entities_count=result.get("entities_added", result.get("entities_count", 0)),
+            relationships_count=result.get("relationships_added", result.get("relationships_count", 0)),
+            message=f"Indexed {result.get('entities_added', result.get('entities_count', 0))} entities and {result.get('relationships_added', result.get('relationships_count', 0))} relationships"
+        )
+        
+    except Exception as e:
+        logger.error(f"Error indexing document in graph: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/graph/query", response_model=GraphQueryResponse, tags=["GraphRAG"])
+async def graph_query(
+    request: GraphQueryRequest,
+    state: AppState = Depends(get_state)
+):
+    """
+    Query the knowledge graph using natural language.
+    
+    Supports relationship-based queries like:
+    - "Which carriers have delivered to location X?"
+    - "What shipments does shipper Y have?"
+    - "Show connections between carrier A and consignee B"
+    """
+    if not state.graph_rag:
+        raise HTTPException(status_code=503, detail="GraphRAG engine not initialized")
+    
+    try:
+        # Synchronous query method
+        result = state.graph_rag.query(question=request.query)
+        
+        return GraphQueryResponse(
+            success=True,
+            query=request.query,
+            answer=result.answer,
+            entities_found=len(result.entities),
+            relationships_found=len(result.relationships),
+            confidence=result.confidence,
+            reasoning=" → ".join(result.reasoning_path) if result.reasoning_path else None
+        )
+        
+    except Exception as e:
+        logger.error(f"Error querying knowledge graph: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/graph/stats", response_model=GraphStatsResponse, tags=["GraphRAG"])
+async def graph_stats(state: AppState = Depends(get_state)):
+    """
+    Get statistics about the knowledge graph.
+    """
+    if not state.graph_rag:
+        raise HTTPException(status_code=503, detail="GraphRAG engine not initialized")
+    
+    try:
+        stats = state.graph_rag.get_graph_stats()
+        return GraphStatsResponse(
+            total_entities=stats.get("total_nodes", 0),
+            total_relationships=stats.get("total_edges", 0),
+            documents_indexed=stats.get("indexed_documents", 0),
+            entity_types=stats.get("entity_types", {}),
+            relationship_types=stats.get("relationship_types", {})
+        )
+        
+    except Exception as e:
+        logger.error(f"Error getting graph stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/graph/visualize", tags=["GraphRAG"])
+async def graph_visualize(
+    max_nodes: int = 50,
+    state: AppState = Depends(get_state)
+):
+    """
+    Get graph visualization data.
+    
+    Returns nodes and edges suitable for visualization libraries.
+    """
+    if not state.graph_rag:
+        raise HTTPException(status_code=503, detail="GraphRAG engine not initialized")
+    
+    try:
+        viz_data = state.graph_rag.visualize_graph(max_nodes=max_nodes)
+        return {
+            "success": True,
+            "nodes": viz_data["nodes"],
+            "edges": viz_data["edges"],
+            "node_count": len(viz_data["nodes"]),
+            "edge_count": len(viz_data["edges"])
+        }
+        
+    except Exception as e:
+        logger.error(f"Error generating visualization: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

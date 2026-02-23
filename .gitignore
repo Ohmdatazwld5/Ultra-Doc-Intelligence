@@ -86,3 +86,5 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+# Streamlit secrets (keep example, ignore actual secrets)
+.streamlit/secrets.toml

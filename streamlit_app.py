@@ -6,13 +6,31 @@ Provides a lightweight interface for document upload, Q&A, and structured extrac
 import streamlit as st
 import requests
 import json
+import os
 from typing import Optional, Dict, Any
 import time
 
 # ============== Configuration ==============
 
-# API endpoint (configurable via environment or default)
-API_BASE_URL = "http://localhost:8000"
+# API endpoint - configurable via secrets, environment, or default
+def get_api_base_url():
+    """Get API base URL from secrets, environment, or default."""
+    # Try Streamlit secrets first (for cloud deployment)
+    try:
+        if hasattr(st, 'secrets') and 'API_BASE_URL' in st.secrets:
+            return st.secrets['API_BASE_URL']
+    except Exception:
+        pass
+    
+    # Try environment variable
+    env_url = os.environ.get('API_BASE_URL')
+    if env_url:
+        return env_url
+    
+    # Default for local development
+    return "http://localhost:8000"
+
+API_BASE_URL = get_api_base_url()
 
 # Page configuration
 st.set_page_config(
@@ -435,7 +453,7 @@ if not st.session_state.document_id:
     st.stop()
 
 # Create tabs for different functionalities
-tab_qa, tab_extract, tab_history = st.tabs(["💬 Ask Questions", "📋 Extract Data", "📜 History"])
+tab_qa, tab_extract, tab_graph, tab_history = st.tabs(["💬 Ask Questions", "📋 Extract Data", "🕸️ GraphRAG", "📜 History"])
 
 
 # ============== Q&A Tab ==============
@@ -633,6 +651,110 @@ with tab_history:
                 
                 if result.get("guardrail_triggered"):
                     st.warning(f"Guardrail: {result.get('guardrail_reason')}")
+
+
+# ============== GraphRAG Tab ==============
+
+with tab_graph:
+    st.markdown("### Knowledge Graph Q&A")
+    st.markdown("Query relationships between entities across your documents using GraphRAG.")
+    
+    # Graph Stats
+    col1, col2 = st.columns([1, 1])
+    
+    with col1:
+        st.markdown("#### Index Document")
+        if st.button("🕸️ Build Knowledge Graph", type="secondary", use_container_width=True):
+            with st.spinner("Extracting entities and relationships..."):
+                try:
+                    response = requests.post(
+                        f"{API_BASE_URL}/graph/index",
+                        json={"document_id": st.session_state.document_id}
+                    )
+                    if response.ok:
+                        result = response.json()
+                        st.success(f"✅ {result['message']}")
+                    else:
+                        st.error(f"Failed: {response.json().get('detail', 'Unknown error')}")
+                except Exception as e:
+                    st.error(f"Error: {e}")
+    
+    with col2:
+        st.markdown("#### Graph Statistics")
+        if st.button("📊 Refresh Stats", use_container_width=True):
+            try:
+                response = requests.get(f"{API_BASE_URL}/graph/stats")
+                if response.ok:
+                    stats = response.json()
+                    st.session_state.graph_stats = stats
+            except Exception as e:
+                st.error(f"Error: {e}")
+        
+        if "graph_stats" in st.session_state:
+            stats = st.session_state.graph_stats
+            st.metric("Entities", stats.get("total_entities", 0))
+            st.metric("Relationships", stats.get("total_relationships", 0))
+            st.metric("Documents", stats.get("documents_indexed", 0))
+    
+    st.markdown("---")
+    st.markdown("#### Ask Relationship Questions")
+    
+    graph_question = st.text_input(
+        "Enter your question:",
+        placeholder="e.g., Which carriers have delivered shipments for this shipper?",
+        key="graph_question_input"
+    )
+    
+    if st.button("🔍 Query Graph", type="primary"):
+        if graph_question:
+            with st.spinner("Reasoning over knowledge graph..."):
+                try:
+                    response = requests.post(
+                        f"{API_BASE_URL}/graph/query",
+                        json={"query": graph_question, "max_entities": 20}
+                    )
+                    if response.ok:
+                        result = response.json()
+                        
+                        # Confidence
+                        confidence = result.get("confidence", 0)
+                        confidence_class = get_confidence_class(confidence)
+                        
+                        col1, col2 = st.columns([3, 1])
+                        with col2:
+                            st.markdown(
+                                f'<div class="{confidence_class}">Confidence: {confidence:.1%}</div>',
+                                unsafe_allow_html=True
+                            )
+                        
+                        # Answer
+                        st.markdown(
+                            f'<div class="answer-box"><strong>Answer:</strong><br>{result.get("answer", "No answer found")}</div>',
+                            unsafe_allow_html=True
+                        )
+                        
+                        # Stats
+                        st.markdown(f"*Found {result.get('entities_found', 0)} entities and {result.get('relationships_found', 0)} relationships*")
+                        
+                        # Reasoning
+                        if result.get("reasoning"):
+                            with st.expander("🧠 View Reasoning", expanded=False):
+                                st.markdown(result["reasoning"])
+                    else:
+                        st.error(f"Query failed: {response.json().get('detail', 'Unknown error')}")
+                except Exception as e:
+                    st.error(f"Error: {e}")
+        else:
+            st.warning("Please enter a question.")
+    
+    st.markdown("---")
+    st.markdown("##### Example Questions")
+    st.markdown("""
+    - What is the relationship between the shipper and carrier?
+    - Which locations are connected in this shipment?
+    - What equipment type is being used?
+    - Show all entities related to this shipment
+    """)
 
 
 # ============== Footer ==============
