@@ -32,6 +32,78 @@ def get_api_base_url():
 
 API_BASE_URL = get_api_base_url()
 
+# ============== Demo Mode Sample Data ==============
+
+DEMO_EXTRACTION_DATA = {
+    "shipment_id": "LD53657",
+    "shipper": "ABC Manufacturing Co.",
+    "consignee": "XYZ Distribution Center",
+    "pickup_datetime": "2026-02-24T08:00:00",
+    "delivery_datetime": "2026-02-26T14:00:00",
+    "equipment_type": "53' Dry Van",
+    "mode": "FTL (Full Truckload)",
+    "rate": "$2,450.00",
+    "currency": "USD",
+    "weight": "42,000 lbs",
+    "carrier_name": "FastFreight Logistics LLC"
+}
+
+DEMO_QA_RESPONSES = {
+    "default": {
+        "answer": "Based on the document analysis, the shipment LD53657 is a Full Truckload (FTL) movement from ABC Manufacturing Co. to XYZ Distribution Center. The carrier rate is $2,450.00 USD for a 53' Dry Van equipment type. Pickup is scheduled for February 24, 2026 at 08:00 AM with delivery expected by February 26, 2026 at 2:00 PM.",
+        "confidence_score": 0.92,
+        "guardrail_triggered": False,
+        "sources": [
+            {"rank": 1, "similarity_score": 0.95, "page_number": 1, "content": "RATE CONFIRMATION\nLoad #: LD53657\nCarrier: FastFreight Logistics LLC\nRate: $2,450.00 USD"},
+            {"rank": 2, "similarity_score": 0.88, "page_number": 1, "content": "Shipper: ABC Manufacturing Co.\nConsignee: XYZ Distribution Center\nEquipment: 53' Dry Van"}
+        ]
+    },
+    "rate": {
+        "answer": "The carrier rate for this shipment is $2,450.00 USD. This is a flat rate for Full Truckload (FTL) service using a 53' Dry Van.",
+        "confidence_score": 0.96,
+        "guardrail_triggered": False,
+        "sources": [
+            {"rank": 1, "similarity_score": 0.98, "page_number": 1, "content": "RATE: $2,450.00 USD\nPayment Terms: Net 30 Days"}
+        ]
+    },
+    "pickup": {
+        "answer": "Pickup is scheduled for February 24, 2026 at 08:00 AM at ABC Manufacturing Co. facility.",
+        "confidence_score": 0.94,
+        "guardrail_triggered": False,
+        "sources": [
+            {"rank": 1, "similarity_score": 0.96, "page_number": 1, "content": "PICKUP: 02/24/2026 @ 08:00 AM\nLocation: ABC Manufacturing Co."}
+        ]
+    },
+    "delivery": {
+        "answer": "Delivery is expected on February 26, 2026 at 2:00 PM at XYZ Distribution Center.",
+        "confidence_score": 0.93,
+        "guardrail_triggered": False,
+        "sources": [
+            {"rank": 1, "similarity_score": 0.95, "page_number": 1, "content": "DELIVERY: 02/26/2026 @ 2:00 PM\nLocation: XYZ Distribution Center"}
+        ]
+    }
+}
+
+DEMO_GRAPH_RESPONSE = {
+    "answer": "The knowledge graph shows that FastFreight Logistics LLC (Carrier) is transporting shipment LD53657 from ABC Manufacturing Co. (Shipper) to XYZ Distribution Center (Consignee). The shipment uses a 53' Dry Van and follows an FTL (Full Truckload) mode. Key relationships: Carrier TRANSPORTS Shipment, Shipper SHIPS_TO Consignee, Shipment USES Equipment Type.",
+    "confidence": 0.89,
+    "entities_found": 6,
+    "relationships_found": 5,
+    "reasoning": "1. Identified carrier entity: FastFreight Logistics LLC\n2. Found shipper-consignee relationship: ABC Manufacturing -> XYZ Distribution\n3. Mapped equipment and mode attributes\n4. Connected all entities through shipment ID LD53657"
+}
+
+def get_demo_qa_response(question: str) -> dict:
+    """Get appropriate demo response based on question keywords."""
+    question_lower = question.lower()
+    if any(word in question_lower for word in ["rate", "cost", "price", "charge"]):
+        return DEMO_QA_RESPONSES["rate"]
+    elif any(word in question_lower for word in ["pickup", "pick up", "origin"]):
+        return DEMO_QA_RESPONSES["pickup"]
+    elif any(word in question_lower for word in ["delivery", "deliver", "destination"]):
+        return DEMO_QA_RESPONSES["delivery"]
+    else:
+        return DEMO_QA_RESPONSES["default"]
+
 # Page configuration
 st.set_page_config(
     page_title="Ultra Doc-Intelligence",
@@ -329,6 +401,8 @@ if "extraction_result" not in st.session_state:
     st.session_state.extraction_result = None
 if "last_processed_file" not in st.session_state:
     st.session_state.last_processed_file = None
+if "demo_mode" not in st.session_state:
+    st.session_state.demo_mode = False
 
 
 # ============== Sidebar ==============
@@ -339,13 +413,15 @@ with st.sidebar:
     
     st.divider()
     
-    # API Status
+    # API Status & Demo Mode
     api_healthy = check_api_health()
     if api_healthy:
         st.success("✅ API Connected")
+        st.session_state.demo_mode = False
     else:
-        st.error("❌ API Disconnected")
-        st.info("Start the API server with:\n`uvicorn app.main:app --reload`")
+        st.warning("🎭 Demo Mode Active")
+        st.session_state.demo_mode = True
+        st.caption("API not connected. Showing sample responses.")
     
     st.divider()
     
@@ -390,17 +466,30 @@ with st.sidebar:
         # Check if this is a new file (not already processed)
         file_key = f"{uploaded_file.name}_{uploaded_file.size}"
         if st.session_state.get("last_processed_file") != file_key:
-            with st.spinner("🔄 Auto-indexing document..."):
-                result = upload_document(uploaded_file)
-                if result and result.get("success"):
-                    st.session_state.document_id = result["document_id"]
-                    st.session_state.document_name = result["filename"]
-                    st.session_state.chat_history = []
-                    st.session_state.extraction_result = None
-                    st.session_state.last_processed_file = file_key
-                    st.success(f"✅ Auto-indexed: {result['filename']}")
-                    st.info(f"📊 {result['stats']['chunk_count']} chunks, {result['stats']['page_count']} pages")
-                    st.rerun()
+            if st.session_state.demo_mode:
+                # Demo mode: simulate successful upload
+                import hashlib
+                demo_doc_id = hashlib.md5(uploaded_file.name.encode()).hexdigest()
+                st.session_state.document_id = demo_doc_id
+                st.session_state.document_name = uploaded_file.name
+                st.session_state.chat_history = []
+                st.session_state.extraction_result = None
+                st.session_state.last_processed_file = file_key
+                st.success(f"✅ Demo: Loaded {uploaded_file.name}")
+                st.info("📊 Demo: 8 chunks, 2 pages (simulated)")
+                st.rerun()
+            else:
+                with st.spinner("🔄 Auto-indexing document..."):
+                    result = upload_document(uploaded_file)
+                    if result and result.get("success"):
+                        st.session_state.document_id = result["document_id"]
+                        st.session_state.document_name = result["filename"]
+                        st.session_state.chat_history = []
+                        st.session_state.extraction_result = None
+                        st.session_state.last_processed_file = file_key
+                        st.success(f"✅ Auto-indexed: {result['filename']}")
+                        st.info(f"📊 {result['stats']['chunk_count']} chunks, {result['stats']['page_count']} pages")
+                        st.rerun()
         else:
             st.success(f"✅ Document ready: {uploaded_file.name}")
     
@@ -425,6 +514,20 @@ with st.sidebar:
 # Header
 st.markdown('<p class="main-header">🔍 Ultra Doc-Intelligence</p>', unsafe_allow_html=True)
 st.markdown('<p class="sub-header">AI-powered logistics document analysis with RAG and guardrails</p>', unsafe_allow_html=True)
+
+# Demo Mode Banner
+if st.session_state.demo_mode:
+    st.markdown("""
+    <div style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); 
+                color: white; 
+                padding: 1rem; 
+                border-radius: 0.5rem; 
+                margin-bottom: 1rem;
+                text-align: center;">
+        <strong>🎭 DEMO MODE</strong> - Backend API not connected. Showing sample responses to demonstrate functionality.
+        <br><small>Deploy the FastAPI backend to enable live document processing.</small>
+    </div>
+    """, unsafe_allow_html=True)
 
 # Check for active document
 if not st.session_state.document_id:
@@ -479,15 +582,23 @@ with tab_qa:
         st.rerun()
     
     if ask_button and question:
-        with st.spinner("Analyzing document..." + (" (reasoning mode)" if use_reasoning else "")):
-            result = ask_question(st.session_state.document_id, question, min_confidence, use_reasoning)
-            
-            if result:
-                # Add to history
-                st.session_state.chat_history.append({
-                    "question": question,
-                    "result": result
-                })
+        if st.session_state.demo_mode:
+            # Demo mode: use sample responses
+            result = get_demo_qa_response(question)
+            st.session_state.chat_history.append({
+                "question": question,
+                "result": result
+            })
+        else:
+            with st.spinner("Analyzing document..." + (" (reasoning mode)" if use_reasoning else "")):
+                result = ask_question(st.session_state.document_id, question, min_confidence, use_reasoning)
+                
+                if result:
+                    # Add to history
+                    st.session_state.chat_history.append({
+                        "question": question,
+                        "result": result
+                    })
     
     # Display latest result
     if st.session_state.chat_history:
@@ -546,10 +657,21 @@ with tab_extract:
     st.markdown("Extract key fields from your logistics document into a structured format.")
     
     if st.button("📋 Run Extraction", type="primary"):
-        with st.spinner("Extracting structured data..."):
-            result = extract_data(st.session_state.document_id)
-            if result:
-                st.session_state.extraction_result = result
+        if st.session_state.demo_mode:
+            # Demo mode: use sample extraction data
+            st.session_state.extraction_result = {
+                "data": DEMO_EXTRACTION_DATA,
+                "metadata": {
+                    "extraction_confidence": 0.94,
+                    "fields_extracted": 11,
+                    "fields_total": 11
+                }
+            }
+        else:
+            with st.spinner("Extracting structured data..."):
+                result = extract_data(st.session_state.document_id)
+                if result:
+                    st.session_state.extraction_result = result
     
     if st.session_state.extraction_result:
         result = st.session_state.extraction_result
@@ -665,30 +787,45 @@ with tab_graph:
     with col1:
         st.markdown("#### Index Document")
         if st.button("🕸️ Build Knowledge Graph", type="secondary", use_container_width=True):
-            with st.spinner("Extracting entities and relationships..."):
-                try:
-                    response = requests.post(
-                        f"{API_BASE_URL}/graph/index",
-                        json={"document_id": st.session_state.document_id}
-                    )
-                    if response.ok:
-                        result = response.json()
-                        st.success(f"✅ {result['message']}")
-                    else:
-                        st.error(f"Failed: {response.json().get('detail', 'Unknown error')}")
-                except Exception as e:
-                    st.error(f"Error: {e}")
+            if st.session_state.demo_mode:
+                st.success("✅ Demo: Knowledge graph built with 6 entities and 5 relationships")
+                st.session_state.graph_stats = {
+                    "total_entities": 6,
+                    "total_relationships": 5,
+                    "documents_indexed": 1
+                }
+            else:
+                with st.spinner("Extracting entities and relationships..."):
+                    try:
+                        response = requests.post(
+                            f"{API_BASE_URL}/graph/index",
+                            json={"document_id": st.session_state.document_id}
+                        )
+                        if response.ok:
+                            result = response.json()
+                            st.success(f"✅ {result['message']}")
+                        else:
+                            st.error(f"Failed: {response.json().get('detail', 'Unknown error')}")
+                    except Exception as e:
+                        st.error(f"Error: {e}")
     
     with col2:
         st.markdown("#### Graph Statistics")
         if st.button("📊 Refresh Stats", use_container_width=True):
-            try:
-                response = requests.get(f"{API_BASE_URL}/graph/stats")
-                if response.ok:
-                    stats = response.json()
-                    st.session_state.graph_stats = stats
-            except Exception as e:
-                st.error(f"Error: {e}")
+            if st.session_state.demo_mode:
+                st.session_state.graph_stats = {
+                    "total_entities": 6,
+                    "total_relationships": 5,
+                    "documents_indexed": 1
+                }
+            else:
+                try:
+                    response = requests.get(f"{API_BASE_URL}/graph/stats")
+                    if response.ok:
+                        stats = response.json()
+                        st.session_state.graph_stats = stats
+                except Exception as e:
+                    st.error(f"Error: {e}")
         
         if "graph_stats" in st.session_state:
             stats = st.session_state.graph_stats
@@ -707,43 +844,72 @@ with tab_graph:
     
     if st.button("🔍 Query Graph", type="primary"):
         if graph_question:
-            with st.spinner("Reasoning over knowledge graph..."):
-                try:
-                    response = requests.post(
-                        f"{API_BASE_URL}/graph/query",
-                        json={"query": graph_question, "max_entities": 20}
+            if st.session_state.demo_mode:
+                # Demo mode: use sample GraphRAG response
+                result = DEMO_GRAPH_RESPONSE
+                
+                # Confidence
+                confidence = result.get("confidence", 0)
+                confidence_class = get_confidence_class(confidence)
+                
+                col1, col2 = st.columns([3, 1])
+                with col2:
+                    st.markdown(
+                        f'<div class="{confidence_class}">Confidence: {confidence:.1%}</div>',
+                        unsafe_allow_html=True
                     )
-                    if response.ok:
-                        result = response.json()
-                        
-                        # Confidence
-                        confidence = result.get("confidence", 0)
-                        confidence_class = get_confidence_class(confidence)
-                        
-                        col1, col2 = st.columns([3, 1])
-                        with col2:
+                
+                # Answer
+                st.markdown(
+                    f'<div class="answer-box"><strong>Answer:</strong><br>{result.get("answer", "No answer found")}</div>',
+                    unsafe_allow_html=True
+                )
+                
+                # Stats
+                st.markdown(f"*Found {result.get('entities_found', 0)} entities and {result.get('relationships_found', 0)} relationships*")
+                
+                # Reasoning
+                if result.get("reasoning"):
+                    with st.expander("🧠 View Reasoning", expanded=False):
+                        st.markdown(result["reasoning"])
+            else:
+                with st.spinner("Reasoning over knowledge graph..."):
+                    try:
+                        response = requests.post(
+                            f"{API_BASE_URL}/graph/query",
+                            json={"query": graph_question, "max_entities": 20}
+                        )
+                        if response.ok:
+                            result = response.json()
+                            
+                            # Confidence
+                            confidence = result.get("confidence", 0)
+                            confidence_class = get_confidence_class(confidence)
+                            
+                            col1, col2 = st.columns([3, 1])
+                            with col2:
+                                st.markdown(
+                                    f'<div class="{confidence_class}">Confidence: {confidence:.1%}</div>',
+                                    unsafe_allow_html=True
+                                )
+                            
+                            # Answer
                             st.markdown(
-                                f'<div class="{confidence_class}">Confidence: {confidence:.1%}</div>',
+                                f'<div class="answer-box"><strong>Answer:</strong><br>{result.get("answer", "No answer found")}</div>',
                                 unsafe_allow_html=True
                             )
-                        
-                        # Answer
-                        st.markdown(
-                            f'<div class="answer-box"><strong>Answer:</strong><br>{result.get("answer", "No answer found")}</div>',
-                            unsafe_allow_html=True
-                        )
-                        
-                        # Stats
-                        st.markdown(f"*Found {result.get('entities_found', 0)} entities and {result.get('relationships_found', 0)} relationships*")
-                        
-                        # Reasoning
-                        if result.get("reasoning"):
-                            with st.expander("🧠 View Reasoning", expanded=False):
-                                st.markdown(result["reasoning"])
-                    else:
-                        st.error(f"Query failed: {response.json().get('detail', 'Unknown error')}")
-                except Exception as e:
-                    st.error(f"Error: {e}")
+                            
+                            # Stats
+                            st.markdown(f"*Found {result.get('entities_found', 0)} entities and {result.get('relationships_found', 0)} relationships*")
+                            
+                            # Reasoning
+                            if result.get("reasoning"):
+                                with st.expander("🧠 View Reasoning", expanded=False):
+                                    st.markdown(result["reasoning"])
+                        else:
+                            st.error(f"Query failed: {response.json().get('detail', 'Unknown error')}")
+                    except Exception as e:
+                        st.error(f"Error: {e}")
         else:
             st.warning("Please enter a question.")
     
