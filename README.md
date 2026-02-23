@@ -1,6 +1,6 @@
 # Ultra Doc-Intelligence
 
-> AI-powered logistics document intelligence system with RAG, guardrails, and structured extraction
+> AI-powered logistics document intelligence system with RAG, GraphRAG, guardrails, and structured extraction
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109-green.svg)](https://fastapi.tiangolo.com/)
@@ -8,13 +8,14 @@
 
 ## 🎯 Overview
 
-Ultra Doc-Intelligence is a POC AI system that enables users to upload logistics documents (Rate Confirmations, BOLs, Shipment Instructions, Invoices) and interact with them using natural language. The system uses Retrieval-Augmented Generation (RAG) to provide grounded answers with confidence scoring and hallucination guardrails.
+Ultra Doc-Intelligence is a POC AI system that enables users to upload logistics documents (Rate Confirmations, BOLs, Shipment Instructions, Invoices) and interact with them using natural language. The system combines traditional RAG for factual Q&A with GraphRAG for relationship-aware queries, plus confidence scoring and hallucination guardrails.
 
 ### Key Features
 
 - **📄 Document Processing**: Parse PDF, DOCX, and TXT files with intelligent chunking
 - **💬 Natural Language Q&A**: Ask questions and get grounded answers from document context
-- **🛡️ Hallucination Guardrails**: Multiple validation layers to ensure answer quality
+- **�️ GraphRAG**: Knowledge graph-based retrieval for relationship queries across entities
+- **�🛡️ Hallucination Guardrails**: Multiple validation layers to ensure answer quality
 - **📊 Confidence Scoring**: Composite scoring based on retrieval, grounding, and LLM confidence
 - **📋 Structured Extraction**: Extract standardized shipment data to JSON format
 - **🖥️ Minimal UI**: Streamlit-based interface for document interaction
@@ -26,28 +27,33 @@ Ultra Doc-Intelligence is a POC AI system that enables users to upload logistics
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         Streamlit UI                                │
-│              (Upload, Q&A, Extraction, History)                     │
+│           (Upload, Q&A, Extraction, GraphRAG, History)              │
 └────────────────────────────┬────────────────────────────────────────┘
                              │ HTTP
                              ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                      FastAPI Backend                                │
 │                                                                     │
-│   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐             │
-│   │ POST /upload │  │ POST /ask    │  │ POST /extract│             │
-│   └──────┬───────┘  └──────┬───────┘  └──────┬───────┘             │
-└──────────┼─────────────────┼─────────────────┼──────────────────────┘
-           │                 │                 │
-           ▼                 ▼                 ▼
-┌──────────────────┐ ┌───────────────┐ ┌───────────────────┐
-│ Document         │ │  RAG Engine   │ │ Structured        │
-│ Processor        │ │               │ │ Extractor         │
-│                  │ │ ┌───────────┐ │ │                   │
-│ - PDF Parser     │ │ │ Embedding │ │ │ - Pattern Matching│
-│ - DOCX Parser    │ │ │ Engine    │ │ │ - LLM Extraction  │
-│ - Text Chunker   │ │ └───────────┘ │ │ - Field Merging   │
-│                  │ │ ┌───────────┐ │ │                   │
-└────────┬─────────┘ │ │ Vector    │ │ └───────────────────┘
+│  ┌────────────┐ ┌──────────┐ ┌───────────┐ ┌───────────────────┐   │
+│  │POST /upload│ │POST /ask │ │POST /extract│ │POST /graph/query │   │
+│  └─────┬──────┘ └────┬─────┘ └─────┬──────┘ └────────┬──────────┘   │
+└────────┼─────────────┼─────────────┼─────────────────┼──────────────┘
+         │             │             │                 │
+         ▼             ▼             ▼                 ▼
+┌────────────────┐ ┌─────────────┐ ┌───────────────┐ ┌─────────────────┐
+│ Document       │ │ RAG Engine  │ │ Structured    │ │ GraphRAG Engine │
+│ Processor      │ │             │ │ Extractor     │ │                 │
+│                │ │ ┌─────────┐ │ │               │ │ ┌─────────────┐ │
+│ - PDF Parser   │ │ │Embedding│ │ │ - Pattern     │ │ │ Knowledge   │ │
+│ - DOCX Parser  │ │ │ Engine  │ │ │   Matching    │ │ │ Graph       │ │
+│ - Text Chunker │ │ └─────────┘ │ │ - LLM Extract │ │ │ (NetworkX)  │ │
+│                │ │ ┌─────────┐ │ │ - Field Merge │ │ └─────────────┘ │
+└────────┬───────┘ │ │ Vector  │ │ │               │ │ ┌─────────────┐ │
+         │         │ │ Store   │ │ └───────────────┘ │ │ Entity      │ │
+         │         │ │ (Chroma)│ │                   │ │ Extraction  │ │
+         │         │ └─────────┘ │                   │ │ & Linking   │ │
+         │         └─────────────┘                   │ └─────────────┘ │
+         │                                           └─────────────────┘
          │           │ │ Store     │ │
          │           │ │ (Chroma)  │ │
          │           │ └───────────┘ │
@@ -249,6 +255,118 @@ confidence = (
    - Cross-validate with regex where possible
    - Log discrepancies for review
 ```
+
+### 6. GraphRAG (Knowledge Graph RAG)
+
+**Why GraphRAG?**
+
+Traditional RAG excels at answering questions about specific document passages but struggles with:
+- **Relationship queries**: "What is the connection between the shipper and carrier?"
+- **Multi-hop reasoning**: "Which locations are involved in this shipment chain?"
+- **Entity-centric questions**: "Show me all information about FastFreight Logistics"
+
+GraphRAG addresses these limitations by building a knowledge graph that captures entities and their relationships, enabling relationship-aware retrieval and reasoning.
+
+**Architecture:**
+```
+Document Text
+      │
+      ▼
+┌─────────────────────────────────────┐
+│   LLM Entity & Relationship         │
+│   Extraction                        │
+│   - Named Entity Recognition        │
+│   - Relationship Detection          │
+│   - Entity Type Classification      │
+└─────────────────┬───────────────────┘
+                  │
+                  ▼
+┌─────────────────────────────────────┐
+│   Knowledge Graph (NetworkX)        │
+│                                     │
+│   Nodes: Entities with attributes   │
+│   - type (SHIPPER, CARRIER, etc.)   │
+│   - document_id                     │
+│   - original_text                   │
+│                                     │
+│   Edges: Relationships              │
+│   - SHIPS_TO, TRANSPORTS, USES      │
+│   - HAS_RATE, LOCATED_AT, etc.      │
+└─────────────────┬───────────────────┘
+                  │
+                  ▼
+┌─────────────────────────────────────┐
+│   Graph Query Engine                │
+│   - Entity matching from query      │
+│   - Subgraph extraction             │
+│   - Relationship traversal          │
+│   - LLM-based answer synthesis      │
+└─────────────────────────────────────┘
+```
+
+**Supported Entity Types:**
+| Entity Type | Examples |
+|-------------|----------|
+| SHIPPER | ABC Manufacturing Co., Origin Warehouse |
+| CONSIGNEE | XYZ Distribution Center, Destination Facility |
+| CARRIER | FastFreight Logistics LLC, XPO Logistics |
+| LOCATION | Chicago IL, Los Angeles CA, Port of Newark |
+| SHIPMENT | Load #LD53657, BOL #12345 |
+| EQUIPMENT | 53' Dry Van, 40' Refrigerated Container |
+| RATE | $2,450.00 USD, $1.85/mile |
+| DATE | 02/24/2026, February 24, 2026 |
+| WEIGHT | 42,000 lbs, 19,050 kg |
+| PRODUCT | Electronics, Fresh Produce, Auto Parts |
+
+**Relationship Types:**
+| Relationship | Description |
+|--------------|-------------|
+| SHIPS_TO | Shipper → Consignee connection |
+| TRANSPORTS | Carrier → Shipment connection |
+| USES | Shipment → Equipment type |
+| HAS_RATE | Shipment → Rate/cost |
+| LOCATED_AT | Entity → Location |
+| PICKUP_AT | Shipment → Pickup location |
+| DELIVERS_TO | Shipment → Delivery location |
+| SCHEDULED_FOR | Shipment → Date/time |
+| WEIGHS | Shipment → Weight |
+| CONTAINS | Shipment → Product |
+
+**Query Processing Pipeline:**
+```
+1. Query Analysis
+   - Extract entities mentioned in question
+   - Identify relationship keywords (e.g., "connected to", "between")
+
+2. Graph Traversal
+   - Find matching entities in knowledge graph
+   - Extract relevant subgraph (1-2 hop neighbors)
+   - Collect all relationships
+
+3. Context Building
+   - Format entities and relationships as structured context
+   - Include entity attributes and relationship details
+
+4. Answer Generation
+   - LLM synthesizes answer from graph context
+   - Provides reasoning chain showing how entities connect
+```
+
+**GraphRAG vs Traditional RAG:**
+
+| Aspect | Traditional RAG | GraphRAG |
+|--------|-----------------|----------|
+| Best for | Factual questions | Relationship questions |
+| Retrieval unit | Text chunks | Entities & relationships |
+| Context | Sequential text | Structured graph |
+| Multi-hop reasoning | Limited | Native support |
+| Entity disambiguation | Weak | Strong (via entity linking) |
+
+**Example Queries:**
+- "What is the relationship between the shipper and carrier?"
+- "Which locations are connected in this shipment?"
+- "Show all entities related to shipment LD53657"
+- "What equipment type does FastFreight Logistics use?"
 
 ---
 
