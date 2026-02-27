@@ -1,0 +1,49 @@
+# Render Blueprint for Ultra Doc-Intelligence
+# Deploy all services with one click
+
+services:
+  # FastAPI ML Services
+  - type: web
+    name: ultra-doc-ml
+    runtime: python
+    rootDir: ./
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: XAI_API_KEY
+        sync: false
+      - key: PYTHON_VERSION
+        value: "3.11"
+    plan: free
+
+  # Node.js API Gateway
+  - type: web
+    name: ultra-doc-api
+    runtime: node
+    rootDir: ./backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: FASTAPI_URL
+        fromService:
+          name: ultra-doc-ml
+          type: web
+          property: host
+      - key: NODE_VERSION
+        value: "18"
+    plan: free
+
+  # React Frontend (Static Site)
+  - type: web
+    name: ultra-doc-ui
+    runtime: static
+    rootDir: ./frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          name: ultra-doc-api
+          type: web
+          property: host
+    plan: free
