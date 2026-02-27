@@ -5,8 +5,8 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109-green.svg)](https://fastapi.tiangolo.com/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.31-red.svg)](https://streamlit.io/)
-[![Node.js](https://img.shields.io/badge/Node.js-Planned-yellow.svg)](https://nodejs.org/)
-[![React](https://img.shields.io/badge/React-Planned-61DAFB.svg)](https://react.dev/)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-339933.svg)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-18-61DAFB.svg)](https://react.dev/)
 
 ## 🎯 Overview
 
@@ -377,6 +377,7 @@ Document Text
 ### Prerequisites
 
 - Python 3.10+
+- Node.js 18+ (for full-stack mode)
 - xAI API key (for Grok LLM)
 
 ### Installation
@@ -386,37 +387,63 @@ Document Text
 git clone https://github.com/yourusername/ultra-doc-intelligence.git
 cd ultra-doc-intelligence
 
-# Create virtual environment
+# Create Python virtual environment
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .\.venv\Scripts\activate
 
-# Install dependencies
+# Install Python dependencies
 pip install -r requirements.txt
+
+# Install Node.js dependencies (for full-stack mode)
+cd backend && npm install && cd ..
+cd frontend && npm install && cd ..
 
 # Configure environment
 cp .env.example .env
 # Edit .env and add your XAI_API_KEY
 ```
 
-### Running Locally
+### Running Options
 
-**Option 1 - Single Command (Recommended):**
+#### Option 1: Full-Stack Mode (React + Node.js + FastAPI) ⭐
+
+**Windows PowerShell:**
+```powershell
+.\start-fullstack.ps1
+```
+
+**Or manually in 3 terminals:**
+
+Terminal 1 - FastAPI ML Services:
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Terminal 2 - Node.js API Gateway:
+```bash
+cd backend && npm start
+```
+
+Terminal 3 - React Frontend:
+```bash
+cd frontend && npm run dev
+```
+
+**Access:**
+- 🖥️ React UI: http://localhost:3000
+- 🔌 Node.js Gateway: http://localhost:3001
+- 📡 FastAPI Docs: http://localhost:8000/docs
+
+#### Option 2: Streamlit Mode (Python Only)
+
 ```bash
 python run.py
 ```
 This starts both the API server and Streamlit UI simultaneously.
 
-**Option 2 - Manual:**
-
-Terminal 1 - Start API Server:
-```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-Terminal 2 - Start UI:
-```bash
-streamlit run streamlit_app.py
-```
+**Access:**
+- UI: http://localhost:8501
+- API Docs: http://localhost:8000/docs
 
 **Access:**
 - UI: http://localhost:8501
@@ -629,21 +656,37 @@ Future State (Production):
 
 ```
 ultra-doc-intelligence/
-├── app/
+├── app/                       # Python ML Services
 │   ├── __init__.py
 │   ├── config.py              # Configuration management
 │   ├── document_processor.py  # Document parsing & chunking
 │   ├── rag_engine.py          # RAG: embeddings, retrieval, generation
+│   ├── graph_rag.py           # GraphRAG: knowledge graph queries
 │   ├── structured_extractor.py # Structured data extraction
 │   ├── guardrails.py          # Hallucination prevention
 │   ├── schemas.py             # Pydantic models
 │   └── main.py                # FastAPI application
+├── backend/                   # Node.js API Gateway
+│   ├── package.json
+│   └── server.js              # Express.js gateway server
+├── frontend/                  # React.js SPA
+│   ├── package.json
+│   ├── vite.config.js
+│   ├── tailwind.config.js
+│   ├── index.html
+│   └── src/
+│       ├── main.jsx           # React entry point
+│       ├── App.jsx            # Main application component
+│       ├── index.css          # Tailwind styles
+│       └── services/
+│           └── api.js         # API client service
 ├── data/
 │   ├── uploads/               # Uploaded documents
 │   └── vector_store/          # ChromaDB persistence
 ├── tests/
 │   └── test_*.py              # Unit tests
-├── streamlit_app.py           # Streamlit UI
+├── streamlit_app.py           # Streamlit UI (alternative)
+├── start-fullstack.ps1        # Full-stack startup script
 ├── requirements.txt           # Python dependencies
 ├── .env.example               # Environment template
 └── README.md                  # This file
@@ -665,18 +708,20 @@ pytest tests/ --cov=app --cov-report=html
 
 ## � Roadmap
 
-### Planned Features
+### Features Status
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| **Node.js Backend** | 🔜 Planned | Express.js API layer for improved scalability and JavaScript ecosystem integration |
-| **React.js Frontend** | 🔜 Planned | Modern SPA with component-based architecture, replacing Streamlit for production use |
+| **Node.js Backend** | ✅ Done | Express.js API gateway for scalability |
+| **React.js Frontend** | ✅ Done | Modern SPA with Tailwind CSS |
+| **GraphRAG** | ✅ Done | Knowledge graph retrieval |
+| **Demo Mode** | ✅ Done | Fallback responses for deployment |
 | **TypeScript Support** | 🔜 Planned | Full type safety across frontend and backend |
 | **PostgreSQL + pgvector** | 🔜 Planned | Production-grade vector storage with SQL capabilities |
 | **Authentication** | 🔜 Planned | JWT-based auth with role-based access control |
 | **Multi-tenant Support** | 🔜 Planned | Organization-level document isolation |
-| **Graph Persistence** | 🔜 Planned | Neo4j integration for persistent knowledge graphs |
-| **Real-time Updates** | 🔜 Planned | WebSocket support for live document processing status |
+| **Neo4j Integration** | 🔜 Planned | Persistent knowledge graphs |
+| **WebSocket Updates** | 🔜 Planned | Real-time processing status |
 
 ### Architecture Evolution
 
