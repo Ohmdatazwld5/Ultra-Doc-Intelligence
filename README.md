@@ -5,6 +5,8 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109-green.svg)](https://fastapi.tiangolo.com/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.31-red.svg)](https://streamlit.io/)
+[![Node.js](https://img.shields.io/badge/Node.js-Planned-yellow.svg)](https://nodejs.org/)
+[![React](https://img.shields.io/badge/React-Planned-61DAFB.svg)](https://react.dev/)
 
 ## 🎯 Overview
 
@@ -661,7 +663,45 @@ pytest tests/ --cov=app --cov-report=html
 
 ---
 
-## 📜 License
+## � Roadmap
+
+### Planned Features
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| **Node.js Backend** | 🔜 Planned | Express.js API layer for improved scalability and JavaScript ecosystem integration |
+| **React.js Frontend** | 🔜 Planned | Modern SPA with component-based architecture, replacing Streamlit for production use |
+| **TypeScript Support** | 🔜 Planned | Full type safety across frontend and backend |
+| **PostgreSQL + pgvector** | 🔜 Planned | Production-grade vector storage with SQL capabilities |
+| **Authentication** | 🔜 Planned | JWT-based auth with role-based access control |
+| **Multi-tenant Support** | 🔜 Planned | Organization-level document isolation |
+| **Graph Persistence** | 🔜 Planned | Neo4j integration for persistent knowledge graphs |
+| **Real-time Updates** | 🔜 Planned | WebSocket support for live document processing status |
+
+### Architecture Evolution
+
+**Current Stack (POC):**
+```
+Streamlit (UI) → FastAPI (API) → ChromaDB + NetworkX
+```
+
+**Planned Production Stack:**
+```
+React.js (SPA) → Node.js/Express (API Gateway) → FastAPI (ML Services)
+                                              ↓
+                              PostgreSQL + pgvector + Neo4j
+```
+
+**Why Node.js + React.js?**
+- **Performance**: Non-blocking I/O for handling concurrent document uploads
+- **Ecosystem**: Rich npm ecosystem for document handling, real-time features
+- **Developer Experience**: Hot reloading, component reusability, TypeScript
+- **Scalability**: Microservices-ready architecture with API gateway pattern
+- **Production-Ready UI**: Replace Streamlit POC with full-featured React dashboard
+
+---
+
+## �📜 License
 
 MIT License - see LICENSE file for details.
 
