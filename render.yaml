@@ -14,7 +14,6 @@ services:
         sync: false
       - key: PYTHON_VERSION
         value: "3.11"
-    plan: free
 
   # Node.js API Gateway
   - type: web
@@ -31,19 +30,17 @@ services:
           property: host
       - key: NODE_VERSION
         value: "18"
-    plan: free
 
-  # React Frontend (Static Site)
+  # React Frontend (as Node.js serving static files)
   - type: web
     name: ultra-doc-ui
-    runtime: static
+    runtime: node
     rootDir: ./frontend
-    buildCommand: npm install && npm run build
-    staticPublishPath: ./dist
+    buildCommand: npm install && npm run build && npm install -g serve
+    startCommand: serve -s dist -l $PORT
     envVars:
       - key: VITE_API_URL
         fromService:
           name: ultra-doc-api
           type: web
           property: host
-    plan: free
