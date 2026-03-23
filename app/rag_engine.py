@@ -336,16 +336,26 @@ class VectorStore:
     
     def search(self, document_id: str, query_embedding: List[float], top_k: int = 5) -> List[Tuple[str, str, float, Dict]]:
         """
-        Search for similar chunks.
+        Search for similar chunks in a specific document.
+        
+        Args:
+            document_id: The document to search within
+            query_embedding: Query vector
+            top_k: Number of results to return
         
         Returns:
             List of (chunk_id, content, similarity_score, metadata) tuples
         """
         collection = self.get_or_create_collection(document_id)
         
+        # Defensive filtering: ensure results belong to this document
+        # (Primary isolation via separate collections, secondary validation via where_filter)
+        where_filter = {"document_id": document_id}
+        
         results = collection.query(
             query_embeddings=[query_embedding],
             n_results=top_k,
+            where=where_filter,  # Document-scoped filtering for safety
             include=["documents", "distances", "metadatas"]
         )
         
@@ -360,6 +370,12 @@ class VectorStore:
             
             # Convert cosine distance to similarity
             similarity = 1 - distance
+            
+            # Additional safety check: validate document_id in metadata
+            if metadata.get("document_id") != document_id:
+                logger.warning(f"Chunk {chunk_id} has mismatched document_id: expected {document_id}, got {metadata.get('document_id')}")
+                continue  # Skip chunks from wrong document
+            
             search_results.append((chunk_id, content, similarity, metadata))
         
         return search_results
@@ -385,13 +401,24 @@ class VectorStore:
             return False
     
     def _sanitize_collection_name(self, name: str) -> str:
-        """Sanitize collection name for ChromaDB requirements."""
+        """
+        Sanitize collection name for ChromaDB requirements.
+        Uses hash suffix to ensure uniqueness and prevent collisions from truncation.
+        """
         # ChromaDB requires: 3-63 chars, alphanumeric + underscores/hyphens
+        # Create hash of full document_id to ensure uniqueness
+        hash_suffix = hashlib.md5(name.encode()).hexdigest()[:8]
+        
+        # Keep prefix but leave room for hash
         sanitized = "".join(c if c.isalnum() or c in "-_" else "_" for c in name)
-        sanitized = sanitized[:63]
+        # Leave room for underscore + 8 char hash (9 chars total)
+        sanitized = sanitized[:54]
+        
         if len(sanitized) < 3:
-            sanitized = sanitized + "_doc"
-        return sanitized
+            sanitized = "doc"
+        
+        # Append hash to guarantee uniqueness
+        return f"{sanitized}_{hash_suffix}"
 
 
 class RAGEngine:
